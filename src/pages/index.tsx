@@ -1,11 +1,48 @@
 import Head from 'next/head'
-import Image from 'next/image'
 import { Inter } from '@next/font/google'
-import styles from '@/styles/Home.module.css'
+import { Client } from '@passwordlessdev/passwordless-client';
+import { useCallback, useState } from 'react';
 
 const inter = Inter({ subsets: ['latin'] })
+const apiKey = "danielbark:public:2acc26b31b4247529fa387d952223570";
+// const backendUrl = "http://localhost:8080";
+const backendUrl = "/api";
 
 export default function Home() {
+  const [alias, setAlias] = useState("")
+  const [logs, setLogs] = useState([`Welcome! Please register or sign in`])
+
+  const register = useCallback(async function (alias: string) {
+    if (!alias.length) return;
+    const p = new Client({ apiKey });
+
+    const { token, error } = await fetch(backendUrl + "/create-token?alias=" + alias).then((r) => r.json());
+
+    console.log("Register succeded", token);
+    if (error) {
+      setLogs(prev => {
+        return [...prev, `[${new Date().toLocaleTimeString()}]: ${error}`]
+      })
+      return
+    }
+    await p.register(token, "credential-nickname");
+    setLogs(prev => {
+      return [...prev, `[${new Date().toLocaleTimeString()}]: Successful Registration!`]
+    })
+  }, [])
+
+  const signin = useCallback(async function (alias: string) {
+    if (!alias.length) return;
+    const p = new Client({ apiKey });
+    const token = await p.signinWithAlias(alias);
+    const user = await fetch(backendUrl + "/verify-signin?token=" + token).then((r) => r.json());
+    console.log("User details", user);
+    setLogs(prev => {
+      return [...prev, `[${new Date().toLocaleTimeString()}]: User details: ${JSON.stringify(user, null, 2)}`]
+    })
+    return user;
+  }, [])
+
   return (
     <>
       <Head>
@@ -14,109 +51,34 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={styles.main}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>pages/index.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
+      <main style={{ padding: 36 }}>
+        <h2>Passwordless Minimal demo</h2>
+        <p>To run this example you dont have to do anything other than supply a unique alias.</p>
+        <div style={{ maxWidth: 400 }}>
 
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
+          <input
+            type="text"
+            id="alias"
+            placeholder="Unique Alias (Username, email)"
+            value={alias}
+            onChange={((e) => {
+              setAlias(e.target.value)
+            })}
           />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
-          </div>
+          <button
+            onClick={() => register(alias)}
+          >
+            Register
+          </button>
+          <button
+            onClick={() => signin(alias)}
+          >
+            Login
+          </button>
         </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
-        </div>
+        <pre id="status">
+          {logs.join("\n")}
+        </pre>
       </main>
     </>
   )
